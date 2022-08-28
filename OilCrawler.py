@@ -1,3 +1,4 @@
+import psycopg2
 import requests
 import urllib
 import re
@@ -26,20 +27,39 @@ for info in oilInfo:
         type = info[0]
         price = tmp[r[0]:r[1]]
         unit = tmp[r[1]:]
-        entity = [type,price,unit]
+        entity = [type, price, unit]
         insertInfo.append(entity)
 print(insertInfo)
 
 international = soup.find('section', {"class": "boxheight_05"})
 rawText = "".join(international.text.replace("\n", ",").split())
 oilInfo = rawText.split(",")
-for i in range(0,len(oilInfo)):
+for i in range(0, len(oilInfo)):
     if re.search(r'[0-9]+[.][0-9]+', oilInfo[i]):
         a = oilInfo[i]
         r = (re.search(r'[0-9]+[.][0-9]+', oilInfo[i])).span()
         type = oilInfo[i][:r[0]]
         price = oilInfo[i][r[0]:r[1]]
-        unit = oilInfo[i+1]
-        entity = [type,price,unit]
+        unit = oilInfo[i + 1]
+        entity = [type, price, unit]
         insertInfo.append(entity)
 print(insertInfo)
+
+conn = psycopg2.connect(database="Crawler", user="postgres", password="DeepseaBus@1992", host="localhost",
+                        port="5432")
+cur = conn.cursor()
+sql = '''
+INSERT into "OilPrice"( "Type", "Price", "Unit") VALUES (%s,%s,%s)
+'''
+# for entity in insertInfo:
+#     sql += "(%s,%s)"
+try:
+    cur.executemany(sql, insertInfo)
+    conn.commit()
+    # close communication with the database
+    cur.close()
+except (Exception, psycopg2.DatabaseError) as error:
+    print(error)
+finally:
+    if conn is not None:
+        conn.close()
